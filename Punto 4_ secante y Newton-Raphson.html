@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Punto 4: método de la secante</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap">
+<style>
+:root{--bg:#eef3f4;--grid:#d5e0e3;--card:#fff;--ink:#14213d;--mute:#51627a;--acc:#0b7a75;--accbg:#d8f0ee;--line:#c4d2d6;--ok:#17703a;--okbg:#dcf3e3;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1a24;--grid:#1a2a37;--card:#16232f;--ink:#e6eef5;--mute:#93a6ba;--acc:#4fd1c5;--accbg:#173a3a;--line:#2b3e4d;--ok:#7ee0a0;--okbg:#17372a}}
+:root[data-theme="dark"]{--bg:#0f1a24;--grid:#1a2a37;--card:#16232f;--ink:#e6eef5;--mute:#93a6ba;--acc:#4fd1c5;--accbg:#173a3a;--line:#2b3e4d;--ok:#7ee0a0;--okbg:#17372a}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background-color:var(--bg);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px;color:var(--ink);font:16px/1.6 "IBM Plex Sans",system-ui,sans-serif}
+main{max-width:860px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:clamp(1.6rem,5vw,2.3rem);line-height:1.15;margin:8px 0 4px}
+h2{font-size:1.25rem;margin:0 0 10px}
+.sub{color:var(--mute);margin:0 0 20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin:0 0 16px}
+.mono,code,pre{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+label{display:block;font-size:.85rem;color:var(--mute)}
+input{width:100%;margin-top:4px;padding:8px 10px;font:inherit;font-family:"IBM Plex Mono",monospace;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px}
+input:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+button{font:inherit;font-weight:600;cursor:pointer;border-radius:6px;border:1px solid var(--acc);padding:8px 16px;background:var(--acc);color:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) button.primary{color:#06201e}}
+.tabs{display:flex;gap:8px;margin:16px 0}
+.tabs button{background:var(--card);color:var(--ink);border-color:var(--line)}
+.tabs button[aria-selected="true"]{background:var(--acc);color:#fff;border-color:var(--acc)}
+details{border:1px solid var(--line);border-radius:8px;margin:10px 0;background:var(--card)}
+summary{cursor:pointer;padding:10px 14px;font-weight:600}
+.calc{padding:4px 14px 14px;font-family:"IBM Plex Mono",monospace;font-size:.9rem;overflow-x:auto;white-space:pre}
+.calc b{color:var(--acc)}
+.tag{display:inline-block;padding:1px 8px;border-radius:99px;font-size:.8rem;font-family:"IBM Plex Sans",sans-serif;background:var(--accbg);color:var(--acc)}
+.tag.stop{background:var(--okbg);color:var(--ok)}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-family:"IBM Plex Mono",monospace;font-size:.85rem}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:right;white-space:nowrap}
+th{background:var(--accbg);color:var(--ink);font-family:"IBM Plex Sans",sans-serif}
+.root{font-size:1.1rem;font-weight:600;margin-top:12px}
+pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;font-size:.8rem;line-height:1.5;margin:10px 0 0}
+.err{color:#b3261e;font-weight:600}
+ul{margin:6px 0;padding-left:20px}
+</style>
+</head>
+<body>
+<main>
+<h1>Punto 4: f(x) = 2·sen(x) − x</h1>
+<p class="sub">Métodos de la secante y Newton-Raphson, con cálculos iteración por iteración. Cambia los datos y se recalcula.</p>
+
+<section class="card" aria-label="Datos">
+<div class="fields">
+<label>f(x)<input id="fx" value="2*sin(x) - x" spellcheck="false"></label>
+<label>f’(x), para Newton<input id="dfx" value="2*cos(x) - 1" spellcheck="false"></label>
+<label>x₀<input id="x0" type="number" step="any" value="1"></label>
+<label>x₁<input id="x1" type="number" step="any" value="2"></label>
+<label>x₀ de Newton<input id="xn" type="number" step="any" value="1.5"></label>
+<label>Tolerancia ε (%)<input id="tol" type="number" step="any" value="0.005"></label>
+</div>
+<p style="margin:12px 0 0"><button class="primary" id="go">Calcular</button> <span id="msg" class="err"></span></p>
+</section>
+
+<section class="card">
+<h2>a) Puntos iniciales</h2>
+<div id="pa"></div>
+<h2 style="margin-top:14px">b) Convergencia</h2>
+<ul>
+<li>La secante es un método abierto que no usa derivada: reemplaza f’(x) por la pendiente de la recta entre los dos últimos puntos.</li>
+<li>Su orden de convergencia es superlineal, de aproximadamente 1.618.</li>
+<li>Converge si la raíz es simple y la pendiente cerca de ella no es cero.</li>
+<li>Falla si f(x<sub>i−1</sub>) = f(x<sub>i</sub>), porque se divide entre cero.</li>
+</ul>
+</section>
+
+<div class="tabs" role="tablist">
+<button role="tab" id="t1" aria-selected="true">Secante</button>
+<button role="tab" id="t2" aria-selected="false">Newton-Raphson (d)</button>
+<button role="tab" id="t3" aria-selected="false">Código Java (c)</button>
+</div>
+
+<section id="p1" class="card"></section>
+<section id="p2" class="card" hidden></section>
+<section id="p3" class="card" hidden>
+<h2>c) Código en Java</h2>
+<button id="copy">Copiar código</button>
+<pre id="java">public class Secante {
+
+    // f(x) = 2 sen(x) - x
+    static double f(double x) {
+        return 2 * Math.sin(x) - x;
+    }
+
+    public static void main(String[] args) {
+        double xAnt = 1.0;          // x0
+        double xAct = 2.0;          // x1
+        double tolerancia = 0.005;  // error aproximado en %
+        int maxIter = 50;
+
+        String linea = "-".repeat(100);
+        System.out.println(linea);
+        System.out.printf("%-10s %-14s %-14s %-14s %-16s %-16s%n",
+                "Iteracion", "x(i-1)", "x(i)", "x(i+1)", "f(x(i+1))", "Error aprox (%)");
+        System.out.println(linea);
+
+        for (int i = 1; i &lt;= maxIter; i++) {
+            double fAnt = f(xAnt);
+            double fAct = f(xAct);
+
+            if (fAnt - fAct == 0) {
+                System.out.println("Division entre cero, el metodo se detiene.");
+                break;
+            }
+
+            double xSig = xAct - fAct * (xAnt - xAct) / (fAnt - fAct);
+            double error = Math.abs((xSig - xAct) / xSig) * 100;
+
+            System.out.printf("%-10d %-14.7f %-14.7f %-14.7f %-16.4e %-16.6f%n",
+                    i, xAnt, xAct, xSig, f(xSig), error);
+
+            if (error &lt;= tolerancia) {
+                System.out.println(linea);
+                System.out.printf("Raiz aproximada: %.7f en %d iteraciones%n", xSig, i);
+                break;
+            }
+
+            xAnt = xAct;
+            xAct = xSig;
+        }
+    }
+}</pre>
+</section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = v => {
+  if (!isFinite(v)) return String(v);
+  const a = Math.abs(v);
+  if (a !== 0 && a < 1e-4) return v.toExponential(3).replace("e-", "×10⁻").replace("e+", "×10");
+  return v.toFixed(7);
+};
+const p = v => v < 0 ? "(" + fmt(v) + ")" : fmt(v);
+const pc = v => Math.abs(v) < 1e-3 && v !== 0 ? v.toExponential(2).replace("e-", "×10⁻") + " %" : v.toFixed(4) + " %";
+function mk(src) {
+  const e = src.replace(/\bsen\b/g, "sin").replace(/\^/g, "**");
+  return new Function("x", "with(Math){return (" + e + ");}");
+}
+function secante(f, a, b, tol) {
+  const rows = [];
+  for (let i = 1; i <= 50; i++) {
+    const fa = f(a), fb = f(b), den = fa - fb;
+    if (den === 0) { rows.push({ i, a, b, fa, fb, fail: true }); break; }
+    const num = fb * (a - b), t = num / den, c = b - t, fc = f(c);
+    const err = Math.abs((c - b) / c) * 100, stop = err <= tol;
+    rows.push({ i, a, b, fa, fb, num, den, t, c, fc, err, stop });
+    if (stop) break;
+    a = b; b = c;
+  }
+  return rows;
+}
+function newton(f, df, x, tol) {
+  const rows = [];
+  for (let i = 1; i <= 50; i++) {
+    const fx = f(x), d = df(x);
+    if (d === 0) { rows.push({ i, x, fx, d, fail: true }); break; }
+    const t = fx / d, c = x - t, err = Math.abs((c - x) / c) * 100, stop = err <= tol;
+    rows.push({ i, x, fx, d, t, c, err, stop, fc: f(c) });
+    if (stop) break;
+    x = c;
+  }
+  return rows;
+}
+const tag = r => r.stop ? '<span class="tag stop">paro: ε ≤ tolerancia</span>' : '<span class="tag">sigo</span>';
+function blockS(r) {
+  if (r.fail) return `<details open><summary>Iteración ${r.i}</summary><div class="calc">División entre cero: f(x<sub>i−1</sub>) = f(x<sub>i</sub>)</div></details>`;
+  return `<details open><summary>Iteración ${r.i} ${tag(r)}</summary><div class="calc">x<sub>i−1</sub> = ${fmt(r.a)}    x<sub>i</sub> = ${fmt(r.b)}
+f(x<sub>i−1</sub>) = ${fmt(r.fa)}
+f(x<sub>i</sub>)   = ${fmt(r.fb)}
+
+x<sub>i+1</sub> = ${fmt(r.b)} − (${fmt(r.fb)})(${fmt(r.a)} − ${p(r.b)}) / (${fmt(r.fa)} − ${p(r.fb)})
+x<sub>i+1</sub> = ${fmt(r.b)} − (${p(r.num)} / ${p(r.den)})
+x<sub>i+1</sub> = ${fmt(r.b)} − (${p(r.t)})
+<b>x<sub>i+1</sub> = ${fmt(r.c)}</b>
+
+f(x<sub>i+1</sub>) = <b>${fmt(r.fc)}</b>
+ε<sub>a</sub> = |${fmt(r.c)} − ${fmt(r.b)}| / ${fmt(r.c)} · 100 = <b>${pc(r.err)}</b></div></details>`;
+}
+function blockN(r) {
+  if (r.fail) return `<details open><summary>Iteración ${r.i}</summary><div class="calc">f’(x) = 0: no se puede dividir</div></details>`;
+  return `<details open><summary>Iteración ${r.i} ${tag(r)}</summary><div class="calc">x<sub>i</sub> = ${fmt(r.x)}
+f(x<sub>i</sub>)  = ${fmt(r.fx)}
+f’(x<sub>i</sub>) = ${fmt(r.d)}
+
+x<sub>i+1</sub> = ${fmt(r.x)} − (${fmt(r.fx)} / ${p(r.d)})
+x<sub>i+1</sub> = ${fmt(r.x)} − (${p(r.t)})
+<b>x<sub>i+1</sub> = ${fmt(r.c)}</b>
+
+ε<sub>a</sub> = |${fmt(r.c)} − ${fmt(r.x)}| / ${fmt(r.c)} · 100 = <b>${pc(r.err)}</b></div></details>`;
+}
+function tableS(rows) {
+  return `<h2>Tabla de resultados</h2><div class="tw"><table><thead><tr><th>Iteración (i)</th><th>x<sub>i−1</sub></th><th>x<sub>i</sub></th><th>x<sub>i+1</sub></th><th>f(x<sub>i+1</sub>)</th><th>Error Aprox. (ε<sub>a</sub>)</th></tr></thead><tbody>` +
+    rows.filter(r => !r.fail).map(r => `<tr><td>${r.i}</td><td>${fmt(r.a)}</td><td>${fmt(r.b)}</td><td>${fmt(r.c)}</td><td>${fmt(r.fc)}</td><td>${pc(r.err)}</td></tr>`).join("") + "</tbody></table></div>";
+}
+function tableN(rows) {
+  return `<h2>Tabla de resultados</h2><div class="tw"><table><thead><tr><th>Iteración (i)</th><th>x<sub>i</sub></th><th>f(x<sub>i</sub>)</th><th>f’(x<sub>i</sub>)</th><th>x<sub>i+1</sub></th><th>Error Aprox. (ε<sub>a</sub>)</th></tr></thead><tbody>` +
+    rows.filter(r => !r.fail).map(r => `<tr><td>${r.i}</td><td>${fmt(r.x)}</td><td>${fmt(r.fx)}</td><td>${fmt(r.d)}</td><td>${fmt(r.c)}</td><td>${pc(r.err)}</td></tr>`).join("") + "</tbody></table></div>";
+}
+function run() {
+  $("msg").textContent = "";
+  try {
+    const f = mk($("fx").value), df = mk($("dfx").value);
+    const x0 = +$("x0").value, x1 = +$("x1").value, xn = +$("xn").value, tol = +$("tol").value;
+    if (![f(0.5), df(0.5), x0, x1, xn, tol].every(isFinite)) throw new Error("Revisa que f(x), f’(x) y los números sean válidos.");
+    const f0 = f(x0), f1 = f(x1), ok = f0 * f1 < 0;
+    $("pa").innerHTML = `<div class="mono">f(${x0}) = ${fmt(f0)} (${f0 > 0 ? "positivo" : "negativo"})<br>f(${x1}) = ${fmt(f1)} (${f1 > 0 ? "positivo" : "negativo"})</div>
+<p>${ok ? "Hay cambio de signo, o sea f(x₀)·f(x₁) &lt; 0. Como f es continua, por Bolzano hay una raíz en el intervalo." : "No hay cambio de signo en estos puntos: la secante puede converger igual, pero no está garantizada una raíz entre ellos."}</p>`;
+    const s = secante(f, x0, x1, tol), n = newton(f, df, xn, tol);
+    const last = rs => { const r = rs[rs.length - 1]; return r.fail ? "El método se detuvo por una división entre cero." : `Raíz aproximada: x ≈ ${fmt(r.c)} en ${rs.length} iteraciones` + (r.stop ? "" : " (no llegó a la tolerancia)"); };
+    $("p1").innerHTML = `<h2>Método de la secante</h2><p class="mono" style="font-size:.85rem">x<sub>i+1</sub> = x<sub>i</sub> − f(x<sub>i</sub>)(x<sub>i−1</sub> − x<sub>i</sub>) / (f(x<sub>i−1</sub>) − f(x<sub>i</sub>))</p>` + s.map(blockS).join("") + tableS(s) + `<p class="root">${last(s)}</p>`;
+    $("p2").innerHTML = `<h2>Newton-Raphson</h2><p class="mono" style="font-size:.85rem">x<sub>i+1</sub> = x<sub>i</sub> − f(x<sub>i</sub>) / f’(x<sub>i</sub>)</p>` + n.map(blockN).join("") + tableN(n) + `<p class="root">${last(n)}</p>
+<p>Comparación: Newton tiene orden de convergencia 2 y la secante 1.618, pero Newton necesita calcular f’(x) en cada paso y la secante solo evalúa f. Aquí: secante en ${s.length} iteraciones, Newton en ${n.length}.</p>`;
+  } catch (e) { $("msg").textContent = e.message || "Revisa las expresiones."; }
+}
+const tabs = ["t1", "t2", "t3"], panels = ["p1", "p2", "p3"];
+tabs.forEach((t, k) => $(t).onclick = () => {
+  tabs.forEach((u, j) => { $(u).setAttribute("aria-selected", j === k); $(panels[j]).hidden = j !== k; });
+});
+$("go").onclick = run;
+document.querySelectorAll("input").forEach(i => i.addEventListener("change", run));
+$("copy").onclick = async () => {
+  try { await navigator.clipboard.writeText($("java").textContent); $("copy").textContent = "Copiado"; } catch (e) { $("copy").textContent = "Selecciona y copia manualmente"; }
+  setTimeout(() => $("copy").textContent = "Copiar código", 1800);
+};
+run();
+</script>
+</body>
+</html>
